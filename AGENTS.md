@@ -42,17 +42,25 @@ absent from another checkout. This file contains the required project rules.
 
 ## Repository layout
 
-Keep the first implementation flat:
+Follow the same domain grouping used by mature single-binary Rust CLIs. Keep
+cross-cutting modules at the crate root and give a domain its own directory
+when it has more than one related file:
 
 ```text
 src/
   main.rs       process setup and top-level error handling
-  cli.rs        command-line arguments and modes
   app.rs        application state and event loop decisions
-  ui.rs         ratatui layout and rendering
   search.rs     query normalization and fuzzy ranking
-  store.rs      SQLite schema and parameterized reads and writes
   catalog.rs    small curated command catalog
+  config.rs     paths and runtime configuration
+  error.rs      user-facing error types
+  shell.rs      terminal and Fish boundaries
+  util.rs       small helpers with no clearer owner
+  cmd/          CLI commands and dispatch
+  db/           persistence internals
+  import.rs     import boundary
+  import/       command-history input sources
+  ui/           Ratatui layout and panels
 shell/
   kepler.fish   Fish functions and prompt insertion hook
 tests/
@@ -60,8 +68,10 @@ tests/
 ```
 
 Create a module only when its code has a clear owner. Do not create `utils`,
-`helpers`, `services`, `repositories`, `interfaces`, or empty placeholder
-modules. Add a new directory only for a cohesive group that has a real caller.
+`helpers`, `services`, `repositories`, `interfaces`, or speculative modules.
+The initial documented scaffold is the one exception: its inert module notes
+must be replaced with working code when that module is first wired in. Add a
+new directory only for a cohesive group that has a real caller.
 Integration tests belong in `tests/`. Keep test fixtures in
 `tests/fixtures/`, not in source code or user data directories.
 
@@ -138,7 +148,7 @@ The MVP ranking combines fuzzy query relevance with frequency and recency.
 Use a simple stepped decay for older use, then tune it from observed behavior.
 Do not add a background indexer, network search, or language model dependency.
 
-SQL must stay in `store.rs`, use parameters, and have a small visible schema.
+SQL must stay in `db/`, use parameters, and have a small visible schema.
 Do not log command text or database contents by default.
 
 ## Verification
