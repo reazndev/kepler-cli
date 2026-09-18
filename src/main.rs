@@ -3,6 +3,8 @@ mod catalog;
 mod shell;
 mod ui;
 
+use std::io::{self, Write};
+
 use app::App;
 use crossterm::event::{self, Event};
 use shell::TtyTerminal;
@@ -13,11 +15,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = run(&mut terminal);
     let _ = terminal.show_cursor();
     let restore_result = shell::restore_terminal();
-    result?;
-    Ok(restore_result?)
+    let selection = result?;
+    restore_result?;
+    if let Some(command) = selection {
+        writeln!(io::stdout().lock(), "{command}")?;
+    }
+    Ok(())
 }
 
-fn run(terminal: &mut TtyTerminal) -> Result<(), Box<dyn std::error::Error>> {
+fn run(terminal: &mut TtyTerminal) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let mut app = App::new(catalog::scan_installed_commands());
     inspect_selected_help(&mut app);
 
@@ -35,7 +41,7 @@ fn run(terminal: &mut TtyTerminal) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    Ok(())
+    Ok(app.selection)
 }
 
 fn inspect_selected_help(app: &mut App) {

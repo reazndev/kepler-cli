@@ -11,6 +11,7 @@ pub(crate) struct App {
     pub(crate) commands: Vec<CommandEntry>,
     pub(crate) matches: Vec<usize>,
     pub(crate) selected: usize,
+    pub(crate) selection: Option<String>,
     help_cache: HashMap<PathBuf, String>,
 }
 
@@ -53,6 +54,10 @@ impl App {
 
         match key.code {
             KeyCode::Esc => self.should_exit = true,
+            KeyCode::Enter => {
+                self.selection = self.selected_command().map(|command| command.name.clone());
+                self.should_exit = self.selection.is_some();
+            }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.should_exit = true;
             }
@@ -116,6 +121,20 @@ mod tests {
         let _ = app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
 
         assert!(app.query.is_empty());
+        assert!(app.should_exit);
+    }
+
+    #[test]
+    fn enter_returns_the_selected_command() {
+        let command = CommandEntry {
+            name: "rg".into(),
+            path: "/usr/bin/rg".into(),
+        };
+        let mut app = App::new(vec![command]);
+
+        let _ = app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        assert_eq!(app.selection.as_deref(), Some("rg"));
         assert!(app.should_exit);
     }
 }
