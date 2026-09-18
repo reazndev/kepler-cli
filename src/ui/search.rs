@@ -3,15 +3,33 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout, Position, Rect},
     style::{Color, Style},
     text::{Line, Span},
-    widgets::Paragraph,
+    widgets::{List, ListItem, ListState, Paragraph},
 };
 
-pub(super) fn render_query(frame: &mut Frame, area: Rect, query: &str) -> Position {
-    let [prompt_area, input_area] =
-        Layout::horizontal([Constraint::Length(2), Constraint::Min(0)]).areas(area);
+use crate::app::App;
+
+pub(super) fn render_query(
+    frame: &mut Frame,
+    area: Rect,
+    query: &str,
+    result_count: usize,
+    total_count: usize,
+) -> Position {
+    let count = format!("{result_count}/{total_count}");
+    let count_width = Span::raw(&count).width().min(u16::MAX as usize) as u16;
+    let [prompt_area, input_area, count_area] = Layout::horizontal([
+        Constraint::Length(2),
+        Constraint::Min(0),
+        Constraint::Length(count_width),
+    ])
+    .areas(area);
     frame.render_widget(
         Paragraph::new(Span::styled("> ", Style::new().fg(Color::Cyan))),
         prompt_area,
+    );
+    frame.render_widget(
+        Paragraph::new(count).alignment(Alignment::Right),
+        count_area,
     );
 
     let (input, scroll, cursor) = query_view(query, input_area.width);
@@ -34,8 +52,19 @@ fn query_view(query: &str, area_width: u16) -> (Line<'_>, u16, u16) {
     (Line::raw(query), scroll, query_width - scroll)
 }
 
-pub(super) fn render_results(frame: &mut Frame, area: Rect) {
-    render_empty(frame, area, "No results");
+pub(super) fn render_results(frame: &mut Frame, area: Rect, app: &App) {
+    if app.matches.is_empty() {
+        render_empty(frame, area, "No results");
+        return;
+    }
+
+    let items = app
+        .matches
+        .iter()
+        .map(|index| ListItem::new(app.commands[*index].name.as_str()));
+    let list = List::new(items).highlight_style(Style::new().fg(Color::White).bg(Color::DarkGray));
+    let mut state = ListState::default().with_selected(Some(app.selected));
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 fn render_empty(frame: &mut Frame, area: Rect, message: &str) {

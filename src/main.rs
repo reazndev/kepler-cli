@@ -1,4 +1,5 @@
 mod app;
+mod catalog;
 mod shell;
 mod ui;
 
@@ -17,17 +18,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run(terminal: &mut TtyTerminal) -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = App::default();
+    let mut app = App::new(catalog::scan_installed_commands());
+    inspect_selected_help(&mut app);
 
     while !app.should_exit {
         terminal.draw(|frame| ui::render(frame, &app))?;
 
         match event::read()? {
-            Event::Key(key) => app.handle_key(key),
+            Event::Key(key) => {
+                if let Some(path) = app.handle_key(key) {
+                    inspect_help(&mut app, path);
+                }
+            }
             Event::Resize(width, height) => terminal.resize(width, height)?,
             _ => {}
         }
     }
 
     Ok(())
+}
+
+fn inspect_selected_help(app: &mut App) {
+    if let Some(path) = app.help_request() {
+        inspect_help(app, path);
+    }
+}
+
+fn inspect_help(app: &mut App, path: std::path::PathBuf) {
+    let help = catalog::inspect_help(&path)
+        .unwrap_or_else(|error| format!("Could not inspect help: {error}"));
+    app.cache_help(path, help);
 }
